@@ -1,0 +1,23 @@
+JEAM CEO ADMINISTRATOR ACCOUNT — SETUP REQUIREMENTS
+
+Reserved CEO administrator email:
+jeamugandalimited@gmail.com
+
+Authority:
+- This is the sole initial Super Administrator account.
+- Only the CEO may create, invite, approve, assign roles to, suspend, or deactivate staff accounts.
+- Department heads and staff must never be able to create or elevate administrator accounts.
+- Public customer/student registration must be separate from staff authentication and must not grant management access.
+
+Security requirements before production activation:
+1. Use a managed authentication provider (Firebase Authentication or Supabase Auth) over HTTPS.
+2. Create the initial CEO user through a trusted server-side/admin console, not a public sign-up form.
+3. Verify ownership of jeamugandalimited@gmail.com by sending a one-time activation link to that mailbox.
+4. Require a strong unique password and enable multi-factor authentication where supported.
+5. Enforce CEO-only account provisioning and role assignment in server-side database policies/functions. Hiding buttons in the app is not security.
+6. Keep service-role keys and secrets on the server; never embed them in the APK or frontend.
+7. Record administrative actions in an audit log and provide account recovery procedures.
+8. Test that ordinary users and department staff cannot create users, change roles, or read other departments' restricted records.
+
+Current state:
+The prototype reserves the email above and displays the intended sign-in state. It does NOT create or activate a live account, does not store a password, and does not yet authenticate users. Backend configuration and verified mailbox ownership are required before activation.

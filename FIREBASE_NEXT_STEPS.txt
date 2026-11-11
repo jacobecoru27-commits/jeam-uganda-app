@@ -1,0 +1,38 @@
+JEAM UGANDA LIMITED — FIREBASE CONNECTION CHECK
+
+PROJECT
+Project name: JEAM Uganda Limited
+Project ID: jeam-uganda-limited
+Project number: 910641672257
+Registered web app ID: 1:910641672257:web:cb501f4bac493d5b41d6c0
+CEO email reserved for initial administrator: jeamugandalimited@gmail.com
+
+WHAT IS INCLUDED
+- firebase-config.js: the corrected Firebase web-app client configuration.
+- firebase-test.html: a browser test that initialises Firebase App, Authentication and Firestore SDKs.
+- The original JEAM app prototype and official logo are retained.
+
+HOW TO TEST (IMPORTANT)
+1. Extract this ZIP on a computer or upload the jeam_android_prototype folder to an HTTPS static host.
+2. Open firebase-test.html through the HTTPS host. Do not open it as a file:// page; browser module imports generally require a web server.
+3. Wait for the status message. “Firebase SDK initialised successfully” means only that the SDK accepted the project configuration.
+4. If it fails, note the exact error message and share that message (not passwords or OTPs).
+
+SECURITY STATUS
+- This test does not read or write Firestore data.
+- It does not activate the CEO account or grant administrator rights.
+- It does not create staff accounts.
+- Keep Firestore rules locked (deny all) until trusted server-side access controls are implemented and tested.
+- Never put Firebase Admin SDK service-account JSON, private keys, passwords, or recovery codes in this app or ZIP.
+- The existing CEO Dashboard remains a visual demo and must not be treated as a live secure management system.
+
+NEXT DEVELOPMENT WORK
+1. Confirm SDK initialisation from HTTPS hosting.
+2. Build trusted server-side CEO provisioning and role enforcement (e.g. Cloud Functions/Admin SDK).
+3. Apply least-privilege Firestore rules and test with the Firebase Emulator / rules tests.
+4. Connect public enquiry workflows with data minimisation and validation.
+5. Connect the CEO dashboard only after server-side authorisation and audit logging work.
+6. Perform privacy/security review before collecting sensitive health information or payment data.
+
+ANDROID APK STATUS
+This is still a mobile-first web prototype/PWA package, not a compiled or signed Android APK.
