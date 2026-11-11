@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#082d78">
+<title>JEAM | Secure Account Access</title>
+<style>
+:root{--navy:#082d78;--blue:#0878d1;--green:#70c91d;--ink:#15243b;--muted:#65748b;--paper:#f4f7fc;--line:#e3eaf4}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--ink);padding:18px}
+main{max-width:480px;margin:25px auto;background:#fff;border-radius:20px;padding:23px;box-shadow:0 10px 30px #082d7818}
+.brand{background:linear-gradient(145deg,#061e58,#0b4caa);color:white;margin:-23px -23px 22px;padding:23px;border-radius:20px 20px 0 0}
+.brand h1{margin:0;font-size:24px}.brand p{margin:5px 0 0;color:#dceaff;font-size:13px}
+h2{font-size:18px;margin:12px 0}.muted{color:var(--muted);font-size:13px;line-height:1.5}
+label{display:block;font-size:12px;font-weight:700;margin:13px 0 5px}
+input{width:100%;padding:13px;border:1px solid #ccd7e6;border-radius:10px;font-size:15px}
+button{border:0;border-radius:10px;padding:12px 14px;background:var(--navy);color:white;font-weight:700;font-size:14px;width:100%;margin-top:12px}
+button.secondary{background:#eef3fb;color:var(--navy);border:1px solid var(--line)}
+button:disabled{opacity:.55}
+.row{display:flex;gap:9px}.row button{flex:1}
+.status{padding:12px;border-radius:10px;background:#fff8e7;color:#71520b;font-size:13px;line-height:1.45;margin:14px 0}
+.status.ok{background:#eaf8ef;color:#176b36}.status.bad{background:#fff0f0;color:#9b2525}
+.hidden{display:none}.links{text-align:center;margin-top:13px}.links button{width:auto;background:none;color:var(--blue);padding:5px;margin:0;font-size:13px}
+hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+.note{font-size:11px;color:var(--muted);line-height:1.5;margin-top:18px}
+</style>
+</head>
+<body>
+<main>
+ <header class="brand"><h1>JEAM Uganda Limited</h1><p>A world for everyone — secure account access</p></header>
+ <div id="status" class="status">Loading secure account services…</div>
+ <section id="signedOut">
+  <h2 id="formTitle">Sign in</h2>
+  <p class="muted" id="formHint">Sign in to your JEAM account. Public users may create their own accounts. Staff accounts are created only by the CEO.</p>
+  <label for="email">Email address</label><input id="email" type="email" autocomplete="username" placeholder="name@example.com">
+  <label for="password">Password</label><input id="password" type="password" autocomplete="current-password" placeholder="Enter your password">
+  <button id="primary">Sign in</button>
+  <div class="row"><button class="secondary" id="register">Create public account</button><button class="secondary" id="reset">Forgot password?</button></div>
+ </section>
+ <section id="signedIn" class="hidden">
+  <h2>Account status</h2><p id="accountEmail" class="muted"></p>
+  <p id="verification" class="status"></p>
+  <button id="verify">Send verification email</button>
+  <button id="refresh" class="secondary">Refresh account status</button>
+  <button id="logout" class="secondary">Sign out</button>
+ </section>
+ <hr>
+ <p class="note"><b>Security notice:</b> This page does not grant staff or administrator privileges. Public registration never creates a staff role. CEO authority must be assigned through a trusted server-side process. Do not share passwords or verification links. Keep Firestore rules locked until the secure backend and access rules have been implemented.</p>
+</main>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendEmailVerification, sendPasswordResetEmail, onAuthStateChanged, signOut, reload } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { firebaseConfig } from './firebase-config.js';
+
+const statusEl=document.getElementById('status');
+const emailEl=document.getElementById('email');
+const passEl=document.getElementById('password');
+const signedOut=document.getElementById('signedOut');
+const signedIn=document.getElementById('signedIn');
+const accountEmail=document.getElementById('accountEmail');
+const verification=document.getElementById('verification');
+const verifyBtn=document.getElementById('verify');
+let auth=null, mode='signin';
+
+function status(message,type=''){statusEl.textContent=message;statusEl.className='status '+type;}
+function friendly(error){
+ const map={
+ 'auth/invalid-email':'Please enter a valid email address.',
+ 'auth/missing-password':'Please enter your password.',
+ 'auth/weak-password':'Choose a stronger password with at least 6 characters.',
+ 'auth/email-already-in-use':'An account already exists with this email. Try signing in or resetting its password.',
+ 'auth/invalid-credential':'Email or password is incorrect. You can use Forgot password to set a new password.',
+ 'auth/user-not-found':'No account was found for this email address.',
+ 'auth/too-many-requests':'Too many attempts. Please wait and try again later.',
+ 'auth/network-request-failed':'Network problem. Check your internet connection and try again.',
+ 'auth/operation-not-allowed':'Email/Password sign-in is not enabled in Firebase Authentication.',
+ 'auth/unauthorized-domain':'This website domain is not authorised in Firebase Authentication settings.'
+ };
+ return map[error.code] || `${error.code||'Error'}: ${error.message||'Please try again.'}`;
+}
+function setMode(next){
+ mode=next;
+ document.getElementById('formTitle').textContent=mode==='register'?'Create public account':'Sign in';
+ document.getElementById('primary').textContent=mode==='register'?'Create account':'Sign in';
+ document.getElementById('formHint').textContent=mode==='register'?'Create a public JEAM customer/student account. This will not create staff or management access.':'Sign in to your JEAM account. Staff accounts are created only by the CEO.';
+ passEl.autocomplete=mode==='register'?'new-password':'current-password';
+}
+document.getElementById('register').onclick=()=>setMode(mode==='register'?'signin':'register');
+document.getElementById('primary').onclick=async()=>{
+ const email=emailEl.value.trim(), password=passEl.value;
+ if(!email){status('Enter your email address.','bad');return;}
+ if(!password){status('Enter your password.','bad');return;}
+ try{
+  status(mode==='register'?'Creating your public account…':'Signing in…');
+  if(mode==='register'){
+   const result=await createUserWithEmailAndPassword(auth,email,password);
+   await sendEmailVerification(result.user);
+   status('Public account created. A verification email has been sent. Check your inbox and spam folder.','ok');
+  }else{
+   await signInWithEmailAndPassword(auth,email,password);
+   status('Signed in. Checking your email verification status…','ok');
+  }
+ }catch(e){status(friendly(e),'bad');}
+};
+document.getElementById('reset').onclick=async()=>{
+ const email=emailEl.value.trim();
+ if(!email){status('Enter your email address first, then tap Forgot password again.','bad');return;}
+ try{await sendPasswordResetEmail(auth,email);status('If an account exists for this address, Firebase has sent a password-reset email. Check your inbox and spam folder.','ok');}
+ catch(e){status(friendly(e),'bad');}
+};
+verifyBtn.onclick=async()=>{
+ try{await sendEmailVerification(auth.currentUser);status('Verification email sent. Open the email and follow its verification link.','ok');}
+ catch(e){status(friendly(e),'bad');}
+};
+document.getElementById('refresh').onclick=async()=>{
+ try{await reload(auth.currentUser);renderUser(auth.currentUser);status('Account status refreshed.','ok');}
+ catch(e){status(friendly(e),'bad');}
+};
+document.getElementById('logout').onclick=async()=>{await signOut(auth);status('You have signed out.');};
+function renderUser(user){
+ if(!user){signedOut.classList.remove('hidden');signedIn.classList.add('hidden');return;}
+ signedOut.classList.add('hidden');signedIn.classList.remove('hidden');
+ accountEmail.textContent='Signed in as: '+user.email;
+ if(user.emailVerified){
+  verification.textContent='Email verified. This confirms email ownership only; it does not grant administrator privileges.';
+  verification.className='status ok';verifyBtn.classList.add('hidden');
+ }else{
+  verification.textContent='Email not yet verified. Send a verification email, open it, then return and refresh account status.';
+  verification.className='status';verifyBtn.classList.remove('hidden');
+ }
+}
+try{
+ const app=initializeApp(firebaseConfig);
+ auth=getAuth(app);
+ status('Firebase Authentication is ready. You can sign in, register a public account, or request a password reset.','ok');
+ onAuthStateChanged(auth,user=>renderUser(user));
+}catch(e){status('Firebase could not initialise: '+friendly(e),'bad');}
+</script>
+</body>
+</html>
